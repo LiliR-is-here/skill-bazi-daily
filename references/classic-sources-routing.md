@@ -4,10 +4,11 @@
 
 ## Source Registry
 
-- A（原理层，优先文本）：`references/classics/A_滴天髓.txt`
-- B（结构层，优先文本）：`references/classics/B_渊海子平.txt`
-- C（调候层，优先文本）：`references/classics/C_穷通宝鉴.txt`
-- PDF 回退：`/Users/qinghuiren/Downloads/滴天髓.pdf`、`/Users/qinghuiren/Downloads/渊海子平.pdf`、`/Users/qinghuiren/Downloads/穷通宝鉴.pdf`
+- A（原理层）：`references/classics/A_滴天髓.txt`
+- B（结构层）：`references/classics/B_渊海子平.txt`
+- C（调候层）：`references/classics/C_穷通宝鉴.txt`
+
+若上述 txt 文件不可读，立即报错"经典文本文件缺失，无法完成分析"，不得使用其他路径或内置知识替代。
 
 ## Routing Rules
 
