@@ -7,12 +7,7 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-
-DEFAULT_SOURCES = {
-    "A_滴天髓": Path("/Users/qinghuiren/Downloads/滴天髓.pdf"),
-    "B_渊海子平": Path("/Users/qinghuiren/Downloads/渊海子平.pdf"),
-    "C_穷通宝鉴": Path("/Users/qinghuiren/Downloads/穷通宝鉴.pdf"),
-}
+CLASSIC_KEYS = ["A_滴天髓", "B_渊海子平", "C_穷通宝鉴"]
 
 
 def extract_text(pdf_path: Path) -> list[str]:
@@ -42,9 +37,9 @@ def write_md(title: str, pages: list[str], output_md: Path) -> None:
     output_md.write_text("\n".join(lines), encoding="utf-8")
 
 
-def run(output_dir: Path, generate_md: bool) -> None:
+def run(pdf_paths: dict[str, Path], output_dir: Path, generate_md: bool) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    for key, pdf_path in DEFAULT_SOURCES.items():
+    for key, pdf_path in pdf_paths.items():
         if not pdf_path.exists():
             raise FileNotFoundError(f"Missing source pdf: {pdf_path}")
         pages = extract_text(pdf_path)
@@ -61,9 +56,27 @@ def parse_args() -> argparse.Namespace:
         description="Extract local classic PDFs to UTF-8 txt/md files for fast retrieval."
     )
     parser.add_argument(
+        "--pdf-a",
+        required=True,
+        metavar="PATH",
+        help="Path to 滴天髓.pdf (source for A_滴天髓.txt)",
+    )
+    parser.add_argument(
+        "--pdf-b",
+        required=True,
+        metavar="PATH",
+        help="Path to 渊海子平.pdf (source for B_渊海子平.txt)",
+    )
+    parser.add_argument(
+        "--pdf-c",
+        required=True,
+        metavar="PATH",
+        help="Path to 穷通宝鉴.pdf (source for C_穷通宝鉴.txt)",
+    )
+    parser.add_argument(
         "--output-dir",
-        default="bazi-daily/references/classics",
-        help="Output directory for extracted files.",
+        default="references/classics",
+        help="Output directory for extracted files (default: references/classics).",
     )
     parser.add_argument(
         "--md",
@@ -75,7 +88,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    run(Path(args.output_dir), generate_md=args.md)
+    pdf_paths = {
+        "A_滴天髓": Path(args.pdf_a),
+        "B_渊海子平": Path(args.pdf_b),
+        "C_穷通宝鉴": Path(args.pdf_c),
+    }
+    run(pdf_paths, Path(args.output_dir), generate_md=args.md)
 
 
 if __name__ == "__main__":
