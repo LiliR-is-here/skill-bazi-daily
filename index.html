@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#111111">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>运动助手</title>
+  <style>
+    :root {
+      --bg: #111;
+      --surface: #1c1c1e;
+      --surface2: #2c2c2e;
+      --surface3: #3a3a3c;
+      --accent: #ff6b35;
+      --accent-bg: rgba(255,107,53,0.15);
+      --green: #30d158;
+      --text: #f2f2f7;
+      --text2: #aeaeb2;
+      --danger: #ff453a;
+      --r: 14px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%}
+    body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif;overflow-x:hidden}
+    ::-webkit-scrollbar{width:0}
+
+    /* ── views ── */
+    .view{display:none;min-height:100vh;flex-direction:column}
+    .view.active{display:flex}
+
+    /* ── topbar ── */
+    .topbar{padding:16px 20px 12px;display:flex;align-items:center;gap:12px;background:var(--surface);position:sticky;top:0;z-index:10;border-bottom:1px solid var(--surface2)}
+    .topbar-title{font-size:18px;font-weight:700;flex:1}
+    .btn-back{background:none;border:none;color:var(--accent);font-size:30px;line-height:1;cursor:pointer;padding:0 6px 2px}
+
+    /* ── buttons ── */
+    .btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 20px;border-radius:12px;border:none;font-size:15px;font-weight:600;cursor:pointer;transition:transform .1s,opacity .1s;user-select:none}
+    .btn:active{transform:scale(.95);opacity:.85}
+    .btn-primary{background:var(--accent);color:#fff}
+    .btn-secondary{background:var(--surface2);color:var(--text)}
+    .btn-danger-text{background:none;border:none;color:var(--danger);font-size:15px;font-weight:600;cursor:pointer;padding:8px 4px}
+    .btn-icon{background:none;border:none;cursor:pointer;padding:8px;color:var(--text2);font-size:20px;line-height:1}
+
+    /* ── FAB ── */
+    .fab{position:fixed;bottom:28px;right:20px;width:58px;height:58px;border-radius:50%;background:var(--accent);border:none;color:#fff;font-size:34px;cursor:pointer;box-shadow:0 4px 24px rgba(255,107,53,.5);display:flex;align-items:center;justify-content:center;z-index:20;transition:transform .15s;line-height:1}
+    .fab:active{transform:scale(.9)}
+
+    /* ══════════════════════════════════════
+       HOME
+    ══════════════════════════════════════ */
+    .plan-list{flex:1;padding:12px 0 90px;overflow-y:auto}
+    .plan-card{background:var(--surface);border-radius:var(--r);margin:8px 16px;padding:18px}
+    .plan-card-name{font-size:20px;font-weight:700;margin-bottom:6px}
+    .plan-card-meta{color:var(--text2);font-size:14px;margin-bottom:16px}
+    .plan-card-actions{display:flex;gap:8px;align-items:center}
+    .plan-card-actions .btn{flex:1;padding:11px 0;font-size:14px}
+
+    /* empty state */
+    .empty{text-align:center;padding:80px 40px;color:var(--text2)}
+    .empty-icon{font-size:64px;margin-bottom:20px}
+    .empty-text{font-size:16px;line-height:1.7}
+
+    /* ══════════════════════════════════════
+       EDIT
+    ══════════════════════════════════════ */
+    .edit-body{flex:1;overflow-y:auto;padding-bottom:90px}
+    .section{padding:16px 16px 0}
+    .field-label{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;display:block}
+    .text-input{width:100%;background:var(--surface);border:1.5px solid var(--surface2);color:var(--text);padding:13px 16px;border-radius:12px;font-size:16px;outline:none;transition:border-color .2s}
+    .text-input:focus{border-color:var(--accent)}
+
+    /* exercise card */
+    .ex-card{background:var(--surface);border-radius:var(--r);margin:10px 16px;overflow:hidden;transition:opacity .2s;border:1.5px solid transparent}
+    .ex-card.dragging{opacity:.35}
+    .ex-card.drag-over{border-color:var(--accent)}
+    .ex-card-header{display:flex;align-items:flex-start;padding:14px 12px 10px;gap:10px}
+    .drag-handle{color:var(--surface3);font-size:22px;cursor:grab;touch-action:none;user-select:none;padding:2px 4px;line-height:1.4;flex-shrink:0;margin-top:2px}
+    .ex-name-wrap{flex:1;min-width:0}
+    .ex-name-input{background:transparent;border:none;color:var(--text);font-size:16px;font-weight:600;width:100%;outline:none;padding:0;margin-bottom:6px}
+    .ex-name-input::placeholder{color:var(--surface3)}
+    .ex-type-pill{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:var(--accent-bg);color:var(--accent);display:inline-block}
+    .ex-card-fields{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--surface2);border-top:1px solid var(--surface2)}
+    .ex-field{background:var(--surface);padding:10px 14px;display:flex;flex-direction:column;gap:2px}
+    .ex-field.full{grid-column:1/-1}
+    .ex-field-label{font-size:11px;color:var(--text2)}
+    .ex-field-input{background:transparent;border:none;color:var(--text);font-size:20px;font-weight:700;width:100%;outline:none;padding:2px 0}
+    .ex-field-unit{font-size:11px;color:var(--text2)}
+
+    .add-ex-btn{display:block;margin:10px 16px 16px;background:var(--surface);border:2px dashed var(--surface3);border-radius:var(--r);padding:16px;width:calc(100% - 32px);color:var(--text2);font-size:15px;cursor:pointer;text-align:center;transition:border-color .2s,color .2s}
+    .add-ex-btn:active{border-color:var(--accent);color:var(--accent)}
+
+    .edit-footer{position:fixed;bottom:0;left:0;right:0;padding:14px 16px;background:var(--bg);border-top:1px solid var(--surface2)}
+
+    /* ══════════════════════════════════════
+       MODAL (bottom sheet)
+    ══════════════════════════════════════ */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:flex-end;justify-content:center;z-index:100}
+    .modal-overlay.open{display:flex}
+    .modal-box{background:var(--surface);border-radius:20px 20px 0 0;padding:24px 20px 44px;width:100%;max-width:520px;animation:slideUp .22s ease-out}
+    @keyframes slideUp{from{transform:translateY(60px);opacity:.4}to{transform:none;opacity:1}}
+    .modal-title{font-size:18px;font-weight:700;margin-bottom:6px}
+    .modal-desc{font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.5}
+    .modal-options{display:flex;flex-direction:column;gap:10px}
+    .modal-option{padding:16px;background:var(--surface2);border-radius:12px;border:none;color:var(--text);text-align:left;cursor:pointer;width:100%;transition:background .15s}
+    .modal-option:active{background:var(--surface3)}
+    .modal-option-title{font-size:16px;font-weight:600;margin-bottom:3px}
+    .modal-option-desc{font-size:13px;color:var(--text2)}
+    .modal-cancel{margin-top:12px;width:100%;padding:14px;background:var(--surface2);border-radius:12px;border:none;color:var(--text2);font-size:16px;cursor:pointer;font-weight:500}
+
+    /* ══════════════════════════════════════
+       WORKOUT
+    ══════════════════════════════════════ */
+    #view-workout{background:var(--bg)}
+    .w-topbar{padding:14px 20px;display:flex;justify-content:space-between;align-items:center}
+    .w-progress-label{font-size:14px;color:var(--text2);font-weight:600}
+    .w-end-btn{background:var(--surface2);border:none;color:var(--text2);padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer}
+    .w-end-btn:active{opacity:.7}
+
+    .w-notice{margin:0 16px 8px;background:rgba(255,180,0,.1);border:1px solid rgba(255,180,0,.25);border-radius:10px;padding:8px 14px;font-size:12px;color:#ffb400;text-align:center;line-height:1.4}
+
+    .w-stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 28px;text-align:center}
+    .w-phase{font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:10px;min-height:18px}
+    .w-ex-name{font-size:32px;font-weight:800;line-height:1.2;margin-bottom:8px}
+    .w-set-label{font-size:16px;color:var(--text2);margin-bottom:24px;min-height:22px}
+    .w-countdown{font-size:96px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-2px;margin-bottom:14px;transition:color .4s}
+    .w-countdown.ex{color:var(--accent)}
+    .w-countdown.rest{color:var(--green)}
+    .w-rep-label{font-size:22px;color:var(--text2);min-height:30px}
+
+    .w-bottom{padding-bottom:8px}
+    .w-bar-track{height:5px;background:var(--surface2);margin:0 16px 16px;border-radius:3px;overflow:hidden}
+    .w-bar-fill{height:100%;background:var(--accent);border-radius:3px;transition:width 1s linear}
+    .w-btns{display:flex;gap:12px;padding:0 16px 20px}
+    .w-btns .btn{flex:1;padding:15px 0;font-size:15px}
+
+    /* ══════════════════════════════════════
+       COMPLETE
+    ══════════════════════════════════════ */
+    #view-complete{align-items:center;justify-content:center;text-align:center;padding:40px 24px;gap:16px}
+    .c-trophy{font-size:90px;margin-bottom:8px}
+    .c-title{font-size:38px;font-weight:900}
+    .c-dur{font-size:20px;color:var(--text2)}
+    .c-btn{margin-top:16px;padding:15px 48px}
+  </style>
+</head>
+<body>
+
+<!-- ═══════════ HOME ═══════════ -->
+<div id="view-home" class="view active">
+  <div class="topbar">
+    <span class="topbar-title">💪 运动助手</span>
+  </div>
+  <div class="plan-list" id="plan-list">
+    <div class="empty" id="home-empty">
+      <div class="empty-icon">🏋️</div>
+      <div class="empty-text">还没有训练计划<br>点击右下角 ＋ 开始创建</div>
+    </div>
+  </div>
+  <button class="fab" onclick="App.newPlan()">＋</button>
+</div>
+
+<!-- ═══════════ EDIT ═══════════ -->
+<div id="view-edit" class="view">
+  <div class="topbar">
+    <button class="btn-back" onclick="App.goHome()">‹</button>
+    <span class="topbar-title" id="edit-page-title">新建计划</span>
+  </div>
+  <div class="edit-body">
+    <div class="section">
+      <label class="field-label">计划名称</label>
+      <input id="plan-name-input" class="text-input" type="text" placeholder="例如：10分钟晨练" maxlength="30">
+    </div>
+    <div id="exercise-list" style="margin-top:16px"></div>
+    <button class="add-ex-btn" onclick="App.promptAddExercise()">＋ 添加训练项目</button>
+  </div>
+  <div class="edit-footer">
+    <button class="btn btn-primary" style="width:100%;padding:15px;font-size:16px" onclick="App.savePlan()">保存计划</button>
+  </div>
+</div>
+
+<!-- ═══════════ WORKOUT ═══════════ -->
+<div id="view-workout" class="view">
+  <div class="w-topbar">
+    <div class="w-progress-label" id="w-progress">第 1 / 1 项</div>
+    <button class="w-end-btn" onclick="App.confirmEndWorkout()">结束训练</button>
+  </div>
+  <div class="w-notice">请保持屏幕常亮，以确保语音提醒正常工作</div>
+  <div class="w-stage">
+    <div class="w-phase" id="w-phase"></div>
+    <div class="w-ex-name" id="w-name">—</div>
+    <div class="w-set-label" id="w-set-label"></div>
+    <div class="w-countdown ex" id="w-timer">—</div>
+    <div class="w-rep-label" id="w-rep"></div>
+  </div>
+  <div class="w-bottom">
+    <div class="w-bar-track">
+      <div class="w-bar-fill" id="w-bar" style="width:0%"></div>
+    </div>
+    <div class="w-btns">
+      <button class="btn btn-secondary" id="btn-pause" onclick="App.togglePause()">暂停</button>
+      <button class="btn btn-secondary" onclick="App.skipCurrent()">跳过</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ COMPLETE ═══════════ -->
+<div id="view-complete" class="view">
+  <div class="c-trophy">🏆</div>
+  <div class="c-title">训练完成！</div>
+  <div class="c-dur" id="c-dur">总用时 0:00</div>
+  <button class="btn btn-primary c-btn" onclick="App.goHome()">返回首页</button>
+</div>
+
+<!-- ═══════════ MODAL ═══════════ -->
+<div id="modal" class="modal-overlay" onclick="App.closeModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ─────────────────────────────────────────
+   Utilities
+───────────────────────────────────────── */
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function fmt(sec) {
+  sec = Math.max(0, Math.round(sec));
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}`;
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function planDuration(plan) {
+  return plan.exercises.reduce((acc, ex) => {
+    const sets = Math.max(1, ex.sets || 1);
+    const restTotal = (ex.restSeconds || 0) * Math.max(0, sets - 1);
+    if (ex.type === 'reps') {
+      return acc + sets * (ex.repsPerSet || 1) * (ex.secondsPerRep || 1) + restTotal;
+    }
+    return acc + sets * (ex.secondsPerSet || 30) + restTotal;
+  }, 0);
+}
+
+/* ─────────────────────────────────────────
+   Storage
+───────────────────────────────────────── */
+const Store = {
+  KEY: 'workout_plans_v1',
+  load() {
+    try { return JSON.parse(localStorage.getItem(this.KEY) || '[]'); }
+    catch { return []; }
+  },
+  save(data) { localStorage.setItem(this.KEY, JSON.stringify(data)); }
+};
+
+/* ─────────────────────────────────────────
+   TTS (Web Speech API)
+───────────────────────────────────────── */
+const TTS = {
+  q: [],
+  busy: false,
+  say(text) {
+    if (!window.speechSynthesis) return;
+    this.q.push(text);
+    this._flush();
+  },
+  _flush() {
+    if (this.busy || !this.q.length) return;
+    const utt = new SpeechSynthesisUtterance(this.q.shift());
+    utt.lang = 'zh-CN';
+    utt.rate = 1.05;
+    utt.pitch = 1.0;
+    utt.onend = utt.onerror = () => { this.busy = false; this._flush(); };
+    this.busy = true;
+    speechSynthesis.speak(utt);
+  },
+  stop() {
+    this.q = [];
+    this.busy = false;
+    try { speechSynthesis.cancel(); } catch {}
+  }
+};
+
+/* ─────────────────────────────────────────
+   App
+───────────────────────────────────────── */
+const App = {
+  plans: [],
+  editing: null,  // { plan, idx }
+  w: null,        // workout state
+
+  init() {
+    this.plans = Store.load();
+    this._initDragDrop();
+    this.renderHome();
+  },
+
+  /* ── routing ── */
+  show(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + id).classList.add('active');
+  },
+
+  goHome() {
+    if (this.w) { clearInterval(this.w.tickId); TTS.stop(); this.w = null; }
+    this.show('home');
+    this.renderHome();
+  },
+
+  /* ══════════════════════════════════════
+     HOME
+  ══════════════════════════════════════ */
+  renderHome() {
+    const list = document.getElementById('plan-list');
+    const empty = document.getElementById('home-empty');
+    [...list.children].forEach(c => { if (c !== empty) c.remove(); });
+
+    if (!this.plans.length) { empty.style.display = ''; return; }
+    empty.style.display = 'none';
+
+    this.plans.forEach((plan, i) => {
+      const dur = planDuration(plan);
+      const durText = dur >= 60
+        ? `约 ${Math.ceil(dur / 60)} 分钟`
+        : `约 ${dur} 秒`;
+      const div = document.createElement('div');
+      div.className = 'plan-card';
+      div.innerHTML = `
+        <div class="plan-card-name">${esc(plan.name)}</div>
+        <div class="plan-card-meta">⏱ ${durText} &nbsp;·&nbsp; ${plan.exercises.length} 个项目</div>
+        <div class="plan-card-actions">
+          <button class="btn btn-primary" onclick="App.startWorkout(${i})">开始训练</button>
+          <button class="btn btn-secondary" onclick="App.editPlan(${i})">编辑</button>
+          <button class="btn-danger-text" onclick="App.deletePlan(${i})">删除</button>
+        </div>`;
+      list.appendChild(div);
+    });
+  },
+
+  deletePlan(i) {
+    if (!confirm(`删除「${this.plans[i].name}」？此操作不可撤销。`)) return;
+    this.plans.splice(i, 1);
+    Store.save(this.plans);
+    this.renderHome();
+  },
+
+  /* ══════════════════════════════════════
+     EDIT
+  ══════════════════════════════════════ */
+  newPlan() {
+    this.editing = { plan: { id: uid(), name: '', exercises: [] }, idx: -1 };
+    document.getElementById('edit-page-title').textContent = '新建计划';
+    document.getElementById('plan-name-input').value = '';
+    this._renderExList();
+    this.show('edit');
+  },
+
+  editPlan(i) {
+    this.editing = { plan: JSON.parse(JSON.stringify(this.plans[i])), idx: i };
+    document.getElementById('edit-page-title').textContent = '编辑计划';
+    document.getElementById('plan-name-input').value = this.editing.plan.name;
+    this._renderExList();
+    this.show('edit');
+  },
+
+  _renderExList() {
+    const el = document.getElementById('exercise-list');
+    el.innerHTML = '';
+    this.editing.plan.exercises.forEach((ex, i) => el.appendChild(this._exCard(ex, i)));
+  },
+
+  _exCard(ex, i) {
+    const card = document.createElement('div');
+    card.className = 'ex-card';
+    card.dataset.i = i;
+    const isReps = ex.type === 'reps';
+
+    let fields = isReps ? `
+      <div class="ex-field">
+        <span class="ex-field-label">组数</span>
+        <input class="ex-field-input" type="number" min="1" max="99" value="${ex.sets || 1}" data-field="sets">
+        <span class="ex-field-unit">组</span>
+      </div>
+      <div class="ex-field">
+        <span class="ex-field-label">每组次数</span>
+        <input class="ex-field-input" type="number" min="1" max="999" value="${ex.repsPerSet || 1}" data-field="repsPerSet">
+        <span class="ex-field-unit">次</span>
+      </div>
+      <div class="ex-field">
+        <span class="ex-field-label">每次秒数</span>
+        <input class="ex-field-input" type="number" min="1" max="999" value="${ex.secondsPerRep || 3}" data-field="secondsPerRep">
+        <span class="ex-field-unit">秒</span>
+      </div>
+      <div class="ex-field">
+        <span class="ex-field-label">组间休息</span>
+        <input class="ex-field-input" type="number" min="0" max="999" value="${ex.restSeconds || 20}" data-field="restSeconds">
+        <span class="ex-field-unit">秒</span>
+      </div>` : `
+      <div class="ex-field">
+        <span class="ex-field-label">组数</span>
+        <input class="ex-field-input" type="number" min="1" max="99" value="${ex.sets || 1}" data-field="sets">
+        <span class="ex-field-unit">组</span>
+      </div>
+      <div class="ex-field">
+        <span class="ex-field-label">每组秒数</span>
+        <input class="ex-field-input" type="number" min="1" max="9999" value="${ex.secondsPerSet || 60}" data-field="secondsPerSet">
+        <span class="ex-field-unit">秒</span>
+      </div>
+      <div class="ex-field full">
+        <span class="ex-field-label">组间休息</span>
+        <input class="ex-field-input" type="number" min="0" max="999" value="${ex.restSeconds || 15}" data-field="restSeconds">
+        <span class="ex-field-unit">秒</span>
+      </div>`;
+
+    card.innerHTML = `
+      <div class="ex-card-header">
+        <span class="drag-handle" data-drag="${i}">⠿</span>
+        <div class="ex-name-wrap">
+          <input class="ex-name-input" type="text" placeholder="项目名称" value="${esc(ex.name || '')}" maxlength="20" data-field="name">
+          <span class="ex-type-pill">${isReps ? '🔢 计次' : '⏱ 计时'}</span>
+        </div>
+        <button class="btn-icon" style="color:var(--danger)" onclick="App.removeEx(${i})">✕</button>
+      </div>
+      <div class="ex-card-fields">${fields}</div>`;
+    return card;
+  },
+
+  removeEx(i) {
+    this.editing.plan.exercises.splice(i, 1);
+    this._renderExList();
+  },
+
+  promptAddExercise() {
+    document.getElementById('modal-body').innerHTML = `
+      <div class="modal-title">选择项目类型</div>
+      <div class="modal-desc">根据训练方式选择合适的类型</div>
+      <div class="modal-options">
+        <button class="modal-option" onclick="App.addEx('reps')">
+          <div class="modal-option-title">🔢 计次项目</div>
+          <div class="modal-option-desc">固定组数 × 次数，适合力量、功能性训练</div>
+        </button>
+        <button class="modal-option" onclick="App.addEx('timed')">
+          <div class="modal-option-title">⏱ 计时项目</div>
+          <div class="modal-option-desc">按时间倒计时，适合有氧、保持姿势、冥想</div>
+        </button>
+      </div>
+      <button class="modal-cancel" onclick="App.closeModal()">取消</button>`;
+    document.getElementById('modal').classList.add('open');
+  },
+
+  addEx(type) {
+    this.closeModal();
+    const ex = type === 'reps'
+      ? { id: uid(), type: 'reps', name: '', sets: 3, repsPerSet: 10, secondsPerRep: 3, restSeconds: 20 }
+      : { id: uid(), type: 'timed', name: '', sets: 1, secondsPerSet: 60, restSeconds: 15 };
+    this.editing.plan.exercises.push(ex);
+    this._renderExList();
+    requestAnimationFrame(() => {
+      document.getElementById('exercise-list').lastElementChild
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  },
+
+  _syncExFromDOM() {
+    document.querySelectorAll('#exercise-list .ex-card').forEach((card, i) => {
+      const ex = this.editing.plan.exercises[i];
+      if (!ex) return;
+      card.querySelectorAll('[data-field]').forEach(el => {
+        const f = el.dataset.field;
+        ex[f] = el.type === 'number' ? (parseFloat(el.value) || 0) : el.value.trim();
+      });
+    });
+  },
+
+  savePlan() {
+    this._syncExFromDOM();
+    const name = document.getElementById('plan-name-input').value.trim();
+    if (!name) { alert('请输入计划名称'); return; }
+    if (!this.editing.plan.exercises.length) { alert('请至少添加一个训练项目'); return; }
+    for (const ex of this.editing.plan.exercises) {
+      if (!ex.name) { alert('请填写所有项目的名称'); return; }
+    }
+    this.editing.plan.name = name;
+    if (this.editing.idx === -1) this.plans.push(this.editing.plan);
+    else this.plans[this.editing.idx] = this.editing.plan;
+    Store.save(this.plans);
+    this.goHome();
+  },
+
+  closeModal(e) {
+    if (e && e.target !== document.getElementById('modal')) return;
+    document.getElementById('modal').classList.remove('open');
+  },
+
+  /* ══════════════════════════════════════
+     DRAG & DROP
+  ══════════════════════════════════════ */
+  _initDragDrop() {
+    let src = null, srcIdx = -1;
+
+    document.addEventListener('pointerdown', e => {
+      const handle = e.target.closest('[data-drag]');
+      if (!handle) return;
+      srcIdx = +handle.dataset.drag;
+      src = handle.closest('.ex-card');
+      src.classList.add('dragging');
+      e.preventDefault();
+    });
+
+    document.addEventListener('pointermove', e => {
+      if (!src) return;
+      const list = document.getElementById('exercise-list');
+      if (!list) return;
+      const cards = [...list.querySelectorAll('.ex-card:not(.dragging)')];
+      cards.forEach(c => c.classList.remove('drag-over'));
+      const over = cards.find(c => {
+        const r = c.getBoundingClientRect();
+        return e.clientY >= r.top && e.clientY < r.bottom;
+      });
+      if (over) over.classList.add('drag-over');
+    });
+
+    document.addEventListener('pointerup', () => {
+      if (!src) return;
+      src.classList.remove('dragging');
+      const list = document.getElementById('exercise-list');
+      if (list && this.editing) {
+        const cards = [...list.querySelectorAll('.ex-card')];
+        const tgt = cards.find(c => c.classList.contains('drag-over'));
+        cards.forEach(c => c.classList.remove('drag-over'));
+        if (tgt && +tgt.dataset.i !== srcIdx) {
+          this._syncExFromDOM();
+          const tgtIdx = +tgt.dataset.i;
+          const [moved] = this.editing.plan.exercises.splice(srcIdx, 1);
+          this.editing.plan.exercises.splice(tgtIdx, 0, moved);
+          this._renderExList();
+        }
+      }
+      src = null; srcIdx = -1;
+    });
+  },
+
+  /* ══════════════════════════════════════
+     WORKOUT
+  ══════════════════════════════════════ */
+  startWorkout(planIdx) {
+    const plan = JSON.parse(JSON.stringify(this.plans[planIdx]));
+    if (!plan.exercises.length) { alert('该计划没有训练项目'); return; }
+    TTS.stop();
+    this.w = {
+      plan,
+      exIdx: 0,
+      setIdx: 0,
+      phase: 'exercise',  // 'exercise' | 'rest'
+      timeLeft: 0,
+      repsDone: 0,
+      halfAnn: false,
+      paused: false,
+      tickId: null,
+      startMs: Date.now(),
+      totalDur: planDuration(plan)
+    };
+    this.show('workout');
+    TTS.say('开始训练');
+    setTimeout(() => this._beginEx(), 1500);
+  },
+
+  _ex() { return this.w.plan.exercises[this.w.exIdx]; },
+
+  _beginEx() {
+    const w = this.w, ex = this._ex();
+    w.phase = 'exercise';
+    w.repsDone = 0;
+    w.halfAnn = false;
+    const sets = ex.sets || 1;
+    const setTag = sets > 1 ? `，第 ${w.setIdx + 1} 组，共 ${sets} 组` : '';
+    TTS.say(`开始 ${ex.name}${setTag}`);
+    w.timeLeft = ex.type === 'reps'
+      ? Math.max(1, ex.repsPerSet || 1) * Math.max(1, ex.secondsPerRep || 1)
+      : Math.max(1, ex.secondsPerSet || 30);
+    this._updateUI();
+    clearInterval(w.tickId);
+    w.tickId = setInterval(() => this._tick(), 1000);
+  },
+
+  _beginRest() {
+    const w = this.w, ex = this._ex();
+    w.phase = 'rest';
+    w.timeLeft = ex.restSeconds || 0;
+    if (w.timeLeft <= 0) { this._nextSet(); return; }
+    TTS.say(`第 ${w.setIdx + 1} 组完成，休息 ${w.timeLeft} 秒`);
+    this._updateUI();
+    clearInterval(w.tickId);
+    w.tickId = setInterval(() => this._tick(), 1000);
+  },
+
+  _tick() {
+    const w = this.w;
+    if (w.paused) return;
+    const ex = this._ex();
+
+    w.timeLeft--;
+
+    /* ── announcements ── */
+    if (w.phase === 'exercise') {
+      if (ex.type === 'reps') {
+        const total = Math.max(1, ex.repsPerSet || 1) * Math.max(1, ex.secondsPerRep || 1);
+        const secPerRep = Math.max(1, ex.secondsPerRep || 1);
+        const done = Math.floor((total - w.timeLeft) / secPerRep);
+        if (done > w.repsDone && done <= (ex.repsPerSet || 1)) {
+          w.repsDone = done;
+          TTS.say(String(done));
+        }
+      } else {
+        const total = Math.max(1, ex.secondsPerSet || 30);
+        const half = Math.floor(total / 2);
+        if (!w.halfAnn && w.timeLeft === half && w.timeLeft > 3) {
+          w.halfAnn = true;
+          TTS.say(`还剩 ${half} 秒`);
+        }
+      }
+    } else if (w.phase === 'rest') {
+      if (w.timeLeft === 3) TTS.say('3');
+      else if (w.timeLeft === 2) TTS.say('2');
+      else if (w.timeLeft === 1) TTS.say('1');
+    }
+
+    this._updateUI();
+
+    if (w.timeLeft <= 0) {
+      clearInterval(w.tickId);
+      if (w.phase === 'exercise') {
+        const lastSet = w.setIdx >= (ex.sets || 1) - 1;
+        if (lastSet) {
+          TTS.say(`${ex.name} 完成`);
+          setTimeout(() => this._nextEx(), 900);
+        } else {
+          this._beginRest();
+        }
+      } else {
+        this._nextSet();
+      }
+    }
+  },
+
+  _nextSet() {
+    this.w.setIdx++;
+    this._beginEx();
+  },
+
+  _nextEx() {
+    const w = this.w;
+    clearInterval(w.tickId);
+    w.exIdx++;
+    w.setIdx = 0;
+    if (w.exIdx >= w.plan.exercises.length) this._done();
+    else this._beginEx();
+  },
+
+  togglePause() {
+    const w = this.w;
+    w.paused = !w.paused;
+    document.getElementById('btn-pause').textContent = w.paused ? '继续' : '暂停';
+    try {
+      if (w.paused) speechSynthesis.pause();
+      else speechSynthesis.resume();
+    } catch {}
+  },
+
+  skipCurrent() {
+    const w = this.w;
+    clearInterval(w.tickId);
+    TTS.stop();
+    if (w.phase === 'rest') { this._nextSet(); return; }
+    w.exIdx++;
+    w.setIdx = 0;
+    if (w.exIdx >= w.plan.exercises.length) this._done();
+    else this._beginEx();
+  },
+
+  confirmEndWorkout() {
+    if (!confirm('确定提前结束当前训练？')) return;
+    clearInterval(this.w?.tickId);
+    TTS.stop();
+    this.w = null;
+    this.goHome();
+  },
+
+  _done() {
+    const elapsed = Math.round((Date.now() - this.w.startMs) / 1000);
+    clearInterval(this.w.tickId);
+    TTS.say('训练完成，今天辛苦了');
+    document.getElementById('c-dur').textContent = `总用时 ${fmt(elapsed)}`;
+    this.w = null;
+    this.show('complete');
+  },
+
+  _updateUI() {
+    const w = this.w, ex = this._ex();
+    const total = w.plan.exercises.length;
+
+    document.getElementById('w-progress').textContent = `第 ${w.exIdx + 1} / ${total} 项`;
+    document.getElementById('w-name').textContent = ex.name || '—';
+
+    const timer = document.getElementById('w-timer');
+
+    if (w.phase === 'rest') {
+      document.getElementById('w-phase').textContent = '休息中';
+      document.getElementById('w-set-label').textContent =
+        `下一组：第 ${w.setIdx + 2} 组 / 共 ${ex.sets || 1} 组`;
+      document.getElementById('w-rep').textContent = '';
+      timer.className = 'w-countdown rest';
+    } else {
+      const sets = ex.sets || 1;
+      document.getElementById('w-phase').textContent =
+        sets > 1 ? `第 ${w.setIdx + 1} 组 · 共 ${sets} 组` : '进行中';
+      if (ex.type === 'reps') {
+        document.getElementById('w-set-label').textContent =
+          `${ex.repsPerSet} 次 × ${ex.secondsPerRep} 秒`;
+        document.getElementById('w-rep').textContent =
+          `${w.repsDone} / ${ex.repsPerSet} 次`;
+      } else {
+        document.getElementById('w-set-label').textContent = '';
+        document.getElementById('w-rep').textContent = '';
+      }
+      timer.className = 'w-countdown ex';
+    }
+
+    timer.textContent = fmt(w.timeLeft);
+
+    /* progress bar: real elapsed / estimated total */
+    const elapsed = (Date.now() - w.startMs) / 1000;
+    const pct = w.totalDur > 0 ? Math.min(100, (elapsed / w.totalDur) * 100) : 0;
+    document.getElementById('w-bar').style.width = pct.toFixed(1) + '%';
+  }
+};
+
+App.init();
+</script>
+</body>
+</html>
