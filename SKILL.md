@@ -1,6 +1,6 @@
 ---
 name: bazi-daily
-version: 2.1.0
+version: 2.2.0
 description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询的八字日运解读技能。使用场景：用户询问当日运势、某事项是否适合今天做、今日吉凶与建议时触发。技能会自动读取当前日期，查询当日对应的流年、流月、流日，并结合用户的八字四柱进行分析；若用户为首次使用且无个人四柱记忆，先引导用户提供四柱并写入长期记忆，后续复用无需重复询问。
 ---
 
@@ -8,6 +8,10 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询�
 
 ## Version & Changelog
 
+- **v2.2.0**（2026-08-31）
+  - B《渊海子平》、C《穷通宝鉴》由节选版升级为**完整版**（B：通行七卷本 304 章约 25 万字；C：通行六卷本、十天干分月喜忌与命例齐全），补齐历史“格局论核心章节缺失”与“调候章节缺失”两大缺口。
+  - 新增经典文本检索脚本 `scripts/query_classics.py`（关键词定位章节 + 按章精读），并规定 B/C 大文件必须先检索后精读、禁止整篇读入上下文。
+  - `references/classics/README.md` 重写：覆盖状态更新为“已补全”，新增“检索方式（Retrieval Guide）”章节。
 - **v2.1.0**（2026-08-31）
   - 清理 OpenClaw 工程残留：移除 `agents/`（OpenClaw agent 配置）与 `references/heartbeat-contract.md`。
   - 档案读写改为通用记忆契约 `references/bazi-profile-contract.md`（记忆服务优先，本地 `MEMORY.md` 回退），不再绑定 heartbeat。
@@ -30,21 +34,31 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询�
 - C.《穷通宝鉴》库（调候层）：用于月令气候、寒暖燥湿与调候药方（对结构结论做气候校正）。
 
 固定来源文件（仅使用本地 txt）：
-- `A.滴天髓`：`references/classics/A_滴天髓.txt`
-- `B.渊海子平`：`references/classics/B_渊海子平.txt`
-- `C.穷通宝鉴`：`references/classics/C_穷通宝鉴.txt`
+- `A.滴天髓`：`references/classics/A_滴天髓.txt`（节选）
+- `B.渊海子平`：`references/classics/B_渊海子平.txt`（完整版：通行七卷本 304 章，约 25 万字）
+- `C.穷通宝鉴`：`references/classics/C_穷通宝鉴.txt`（完整版：通行六卷本，十天干分月喜忌与命例齐全，约 3.3 万字）
 
 若 txt 文件不可读，直接报错"经典文本文件缺失，无法完成分析"，不得尝试其他路径。
 
-> **当前文本覆盖缺口警告**：`B_渊海子平.txt` 缺少格局判断核心章节（成格/破格/从格/化格），`C_穷通宝鉴.txt` 缺少约 40% 天干的调候章节（乙木完整版、丁火、戊土、己土、庚金、辛金、癸水）。不得以模型内置知识静默替代缺失内容。详见 [references/classics/README.md](references/classics/README.md)。
->
-> **“涉及缺失”判定规则（强制）**：仅当本次分析**实际引用**的内容命中下述“缺失章节清单”时，才输出“当前文本节选，[B-结构]/[C-调候] 依据不完整”；未命中清单的分析不得触发全量警告。缺失章节清单：
-> - `[B-结构]` 缺失：格局判定章节（成格/破格/从格/化格）——仅当本次需判定格局成立/破坏/从化时命中。
-> - `[C-调候]` 缺失：乙木完整版、丁火、戊土、己土、庚金、辛金、癸水的分月调候条文——仅当本次日主为上述天干且需分月取调候时命中。
-> 命中时：对应结论不标注 `[B-结构]/[C-调候]` 来源标签，并在输出注明“当前文本节选，[B-结构]/[C-调候] 依据不完整”。
+> **经典文本覆盖状态（v2.2.0 已补全）**：B/C 已由节选版升级为完整版，历史“格局论核心章节缺失”“调候章节缺失”缺口已全部补齐，不再存在“涉及缺失”回退。仅 `A_滴天髓.txt` 为节选（暂无已知缺口）。
 
 调用顺序必须是：`B 结构 -> C 调候 -> A 解释`。
 路由细则见 [references/classic-sources-routing.md](references/classic-sources-routing.md)。
+
+## Classic Text Retrieval (Mandatory)
+
+B 完整版约 25 万字、C 约 3.3 万字，**禁止整篇读入上下文**。Step2/3/4 引用经典原文前，必须先用检索定位章节，再按需精读：
+
+1. 用检索脚本定位（先 `--section-only` 看命中章节，再决定是否精读）：
+   - B 结构检索：`python3 scripts/query_classics.py --book B --kw <格局/十神/用神关键词>`
+   - C 调候检索：`python3 scripts/query_classics.py --book C --kw <日主天干> --kw <月份>`
+   - A 原理检索：`python3 scripts/query_classics.py --book A --kw <气机关键词>`
+2. 需要完整条文时按章提取：`python3 scripts/query_classics.py --book B --chapter <章名>`
+   （章名可通过 `--list` 或 `--section-only` 获取；C 书月份章节名如 `正月丙火`、`十一月癸水`）
+3. 脚本不可用时回退 `grep -n` 定位行号再 `sed` 精读。
+4. 引用原文须带出处（书 + 卷章 + 行号），便于溯源。
+
+检索脚本完整用法与规则见 [references/classics/README.md](references/classics/README.md)。
 
 ## Workflow
 
@@ -58,7 +72,8 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询�
 
 默认年度数据源文件：`assets/bazi_daily_calendar_2026.sql`。
 导入脚本：`scripts/import_bazi_calendar.py`。
-经典文本预处理脚本：`scripts/extract_classics_text.py`。
+经典文本检索脚本：`scripts/query_classics.py`（Step2/3/4 引用经典原文前使用，见 “Classic Text Retrieval”）。
+经典文本预处理脚本：`scripts/extract_classics_text.py`（历史用，B/C 完整版已内置，一般不再执行）。
 
 ## Five-Step Orchestration (Mandatory)
 
@@ -67,9 +82,9 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询�
 1. `step1 解析命盘`
    - 提取四柱、十神分布、日主强弱初判、月令、格局候选（可多候选）。
 2. `step2 结构优先（渊海子平）`
-   - 用 B 库先判结构与格局成立条件，给出主格/兼格与用神框架。
+   - 先用检索脚本在 B 库定位格局/十神条文（`--book B --kw <关键词>`），再按需精读，判结构与格局成立条件，给出主格/兼格与用神框架。
 3. `step3 调候校正（穷通宝鉴）`
-   - 用 C 库对寒暖燥湿做修正，必要时覆盖或微调 step2 的用神次序。
+   - 先用检索脚本在 C 库按「日主天干 + 流月/命局月令」定位分月调候条文（如 `--book C --kw 丙火 --kw 正月`），再对寒暖燥湿做修正，必要时覆盖或微调 step2 的用神次序。
 4. `step4 气机解释（滴天髓）`
    - 用 A 库解释最终结论背后的气机逻辑，使结论成体系、可说明。
 5. `step5 输出`
@@ -238,3 +253,4 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询�
 6. 模拟档案读取失败，期望：进入首次引导，流程不断。
 7. 构造“结构与调候结论不一致”案例，期望：输出中明确展示 `B->C->A` 取舍链路。
 8. 检查回答文本，期望：关键结论至少各含一个 `[B-结构]/[C-调候]/[A-原理]` 标签。
+9. 构造需引用经典原文的分析（如判正官格、查某月调候），期望：先调用 `scripts/query_classics.py` 定位（`--section-only`）并只精读相关章节，引用带出处（书+卷章+行号）；不得整篇读入 B/C 大文件。
