@@ -13,32 +13,17 @@ python scripts/import_bazi_calendar.py \
 
 `assets/bazi_daily_calendar_2026.sql`
 
-## OpenClaw 内置表导入（模板）
+## 数据接入方式
 
-将 `<OPENCLAW_DB_EXEC>` 替换为你环境中的数据库执行命令。
+当前运行环境不保证提供可执行 SQL 的数据库。按以下顺序接入当日流运数据：
 
-```bash
-<OPENCLAW_DB_EXEC> < assets/bazi_daily_calendar_2026.sql
-```
-
-常见等价形式：
+1. **优先**：若运行环境提供日历数据查询能力（记忆服务 / 数据表等），按 `references/bazi-calendar-schema.md` 的 Query Contract 查询（`WHERE date = today_local`）。
+2. **本地回退**：直接读取 `assets/bazi_daily_calendar_2026.sql`，按 `date = today_local` 定位对应行的 `flow_year/flow_month/flow_day`（用 grep 或脚本匹配），未命中走“缺少当日流运数据”分支。
+3. **SQLite 验数（可选）**：若本机装有 sqlite3，可本地验数与抽样抽查：
 
 ```bash
-cat assets/bazi_daily_calendar_2026.sql | <OPENCLAW_DB_EXEC>
-```
-
-## SQLite 回退模板（本地验证）
-
-如果你的 OpenClaw 内置表底层是 SQLite，可先用本地方式验数：
-
-```bash
-sqlite3 /path/to/openclaw.db < assets/bazi_daily_calendar_2026.sql
-```
-
-验数示例：
-
-```bash
-sqlite3 /path/to/openclaw.db \
+sqlite3 /tmp/bazi_calendar.db < assets/bazi_daily_calendar_2026.sql
+sqlite3 /tmp/bazi_calendar.db \
   "SELECT COUNT(*) FROM bazi_daily_calendar; \
    SELECT MIN(date), MAX(date) FROM bazi_daily_calendar;"
 ```

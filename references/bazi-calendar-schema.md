@@ -3,13 +3,13 @@
 ## Data Source File
 
 - 默认文件：`assets/bazi_daily_calendar_2026.sql`
-- 用途：作为 `bazi_daily_calendar` 内置表的可直接导入数据源
+- 用途：作为 `bazi_daily_calendar` 数据表的可直接导入数据源
 - 可选原始文件：外部 `xlsx`（不随 skill 包分发时，由用户自行提供）
 - 导入脚本：`scripts/import_bazi_calendar.py`（将外部 xlsx 转为 SQL）
 
 ## Import Mapping
 
-将 Excel 列映射为内置表字段（若原始表头不同，按语义映射）：
+将 Excel 列映射为数据表字段（若原始表头不同，按语义映射）：
 
 - 日期列 -> `date`（统一转换为 `YYYY-MM-DD`）
 - 流年列 -> `flow_year`
@@ -33,7 +33,7 @@ python scripts/import_bazi_calendar.py \
 
 使用本技能时，日历流运数据表至少应包含以下字段：
 
-- `table_name`：`bazi_daily_calendar`（OpenClaw 内置表，逻辑名）
+- `table_name`：`bazi_daily_calendar`（逻辑表名）
 - `date`：公历日期，格式 `YYYY-MM-DD`（主键或唯一键）
 - `flow_year`：当日对应流年（示例：`乙巳`）
 - `flow_month`：当日对应流月（示例：`丁卯`）

@@ -1,17 +1,22 @@
 ---
 name: bazi-daily
-version: 2.0.0
-description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询的八字日运解读技能。使用场景：用户在 OpenClaw 中询问当日运势、某事项是否适合今天做、今日吉凶与建议时触发。技能会自动读取当前日期，查询当日对应的流年、流月、流日，并结合用户的八字四柱进行分析；若用户为首次使用且无个人四柱记忆，先引导用户提供四柱并写入长期记忆，后续复用无需重复询问。
+version: 2.1.0
+description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询的八字日运解读技能。使用场景：用户询问当日运势、某事项是否适合今天做、今日吉凶与建议时触发。技能会自动读取当前日期，查询当日对应的流年、流月、流日，并结合用户的八字四柱进行分析；若用户为首次使用且无个人四柱记忆，先引导用户提供四柱并写入长期记忆，后续复用无需重复询问。
 ---
 
 # Bazi Daily
 
 ## Version & Changelog
 
+- **v2.1.0**（2026-08-31）
+  - 清理 OpenClaw 工程残留：移除 `agents/`（OpenClaw agent 配置）与 `references/heartbeat-contract.md`。
+  - 档案读写改为通用记忆契约 `references/bazi-profile-contract.md`（记忆服务优先，本地 `MEMORY.md` 回退），不再绑定 heartbeat。
+  - 日历数据接入路径去 OpenClaw 化：删除 `<OPENCLAW_DB_EXEC>` / “OpenClaw 内置表” / `openclaw.db` 表述，补充本地查询方式。
+  - 强制日志字段 `heartbeat_get_status` / `heartbeat_upsert_status` 更名为 `memory_get_status` / `memory_upsert_status`。
 - **v2.0.0**（2026-08-31）
   - 新增 `output_style` 输出风格开关（`structured` / `narrative`），支持“结论先行 + 叙事取象”。
   - 新增 Flow Luck Consumption（强制）：闭合 `flow_year/flow_month/flow_day` 的消费链路，不再“只查不用”。
-  - 四柱校验规则单点化至 `references/heartbeat-contract.md`，升级为“六十甲子表匹配”，拒绝 `甲丑` 类非法组合。
+  - 四柱校验规则单点化至契约文档 `references/bazi-profile-contract.md`，升级为“六十甲子表匹配”，拒绝 `甲丑` 类非法组合。
   - 新增“涉及缺失”判定规则与缺失章节清单（见 `references/classics/README.md`），未命中清单不再全量警告。
   - 强制日志字段新增落地位置 `logs/bazi_daily_YYYY-MM-DD.json`。
 - **v1.0.0**（2026-03-03）：初始版本。
@@ -44,11 +49,11 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询�
 ## Workflow
 
 1. 识别触发意图。
-2. 从会话上下文提取 `user_id` 与 `user_timezone`。
+2. 确定用户时区：优先取会话上下文提供的时区；缺失时回退 `Asia/Shanghai` 并记录 `timezone_fallback=true`。
 3. 以用户时区自动计算 `today_local`（`YYYY-MM-DD`）。
-4. 调 heartbeat `bazi_profile_get` 读取用户四柱档案。
-5. 若未命中四柱档案，请用户补充四柱并调 heartbeat `bazi_profile_upsert` 写入长期记忆。
-6. 根据 `today_local` 查询 `bazi_daily_calendar`。
+4. 读取用户四柱档案：优先调记忆服务读取；记忆服务不可用或未命中时，回退本地 `MEMORY.md` 档案。
+5. 若未命中四柱档案，请用户补充四柱并按 `references/bazi-profile-contract.md` 的校验规则写入记忆。
+6. 根据 `today_local` 查询当日流运数据（查询方式见 `references/bazi-calendar-schema.md` 与 `references/import-command-template.md`）。
 7. 按“五步编排”完成分析并输出结论、依据和建议。
 
 默认年度数据源文件：`assets/bazi_daily_calendar_2026.sql`。
@@ -105,8 +110,8 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询�
 1. 明确告知需要四柱后才能进行个性化日运分析。
 2. 请用户直接提供四柱，格式优先：`年柱/月柱/日柱/时柱`。
 3. 若用户不清楚四柱，建议前往“万年历”查询：<https://wannianrili.bmcx.com/>，输入生日后获取四柱再回传。
-4. 校验四柱完整性与格式：按 [references/heartbeat-contract.md](references/heartbeat-contract.md) 的 Validation Rule 执行（完整性 + 六十甲子表匹配）；格式不合法时要求用户重新输入，不得写入。
-5. 调 heartbeat `bazi_profile_upsert` 将结构化结果写入长期记忆。
+4. 校验四柱完整性与格式：按 [references/bazi-profile-contract.md](references/bazi-profile-contract.md) 的 Validation Rule 执行（完整性 + 六十甲子表匹配）；格式不合法时要求用户重新输入，不得写入。
+5. 按 [references/bazi-profile-contract.md](references/bazi-profile-contract.md) 将结构化结果写入长期记忆（记忆服务不可用时写入本地 `MEMORY.md`）。
 6. 写入成功后继续本次分析，不要求用户重新提问。
 
 长期记忆建议键：
@@ -119,7 +124,7 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询�
 
 若用户后续主动更正四柱，以最新输入覆盖旧值。
 
-heartbeat 请求响应与错误码约定见 [references/heartbeat-contract.md](references/heartbeat-contract.md)。
+档案结构与读写适配见 [references/bazi-profile-contract.md](references/bazi-profile-contract.md)。
 
 ## Date And Lookup Rules
 
@@ -132,7 +137,7 @@ heartbeat 请求响应与错误码约定见 [references/heartbeat-contract.md](r
 7. 每次运势分析请求都必须执行一次日期计算与一次数据表查询，不得跳过。
 
 8. 当前内置日历数据为 `assets/bazi_daily_calendar_2026.sql`，从 `2026-03-03` 起覆盖至 2026 年末。年度结束或数据缺口期间，除”缺少当日流运数据”提示外，额外提示”请联系管理员更新年度日历数据”。
-9. 年度日历更新流程：准备新年度 xlsx → 运行 `scripts/import_bazi_calendar.py` 生成 SQL → 导入 OpenClaw 内置表（详见 `references/import-command-template.md`）。新数据应至少在年度切换前 30 天就绪。
+9. 年度日历更新流程：准备新年度 xlsx → 运行 `scripts/import_bazi_calendar.py` 生成 SQL → 按 `references/import-command-template.md` 的数据接入方式使用（详见该文件）。新数据应至少在年度切换前 30 天就绪。
 
 数据表字段约定见 [references/bazi-calendar-schema.md](references/bazi-calendar-schema.md)。
 数据文件导入规范见 [references/bazi-calendar-schema.md](references/bazi-calendar-schema.md) 中的 “Data Source File” 与 “Import Mapping”。
@@ -166,9 +171,9 @@ heartbeat 请求响应与错误码约定见 [references/heartbeat-contract.md](r
 
 ## Failure Handling
 
-1. heartbeat 读取失败时，按“未知档案”处理并进入首次引导；同时提示“记忆服务暂不可用，本次可先临时分析”。
+1. 档案读取失败（记忆服务不可用）时，按“未知档案”处理并进入首次引导；同时提示“记忆服务暂不可用，本次可先临时分析”。
    若用户不清楚四柱，补充推荐“万年历”：<https://wannianrili.bmcx.com/>。
-2. heartbeat 写入失败时，继续使用用户本次输入完成分析；同时提示“本次已解读，但暂未保存，下次可能需要再次提供”。
+2. 档案写入失败时，继续使用用户本次输入完成分析；同时提示“本次已解读，但暂未保存，下次可能需要再次提供”。
 3. 当日流运缺失时，明确告知“缺少当日流运数据，仅基于四柱给出有限建议”；该提示必须建立在“已执行当日查询且未命中”之上。
 
 ## Output Style
@@ -211,25 +216,25 @@ heartbeat 请求响应与错误码约定见 [references/heartbeat-contract.md](r
 - `timezone_fallback`
 - `memory_hit`
 - `calendar_hit`
-- `heartbeat_get_status`
-- `heartbeat_upsert_status`
+- `memory_get_status`
+- `memory_upsert_status`
 - `structure_source_hit`（B）
 - `climate_source_hit`（C）
 - `principle_source_hit`（A）
 - `final_yongshen_framework`
 - `climate_adjustment_applied`
 
-上述字段不得省略；若某字段在当次请求中不适用（如首次引导无 `heartbeat_upsert_status`），记录为 `null`。
+上述字段不得省略；若某字段在当次请求中不适用（如首次引导无 `memory_upsert_status`），记录为 `null`。
 
 **落地位置（强制）**：每次请求写入 `logs/bazi_daily_YYYY-MM-DD.json`（按 UTC 日期分文件），单条记录为一个 JSON 对象，字段与上述一致；运行环境无文件系统时降级为会话内日志并注明 `logging_fallback=true`。
 
 ## UAT Cases
 
-1. 首次用户输入“今日运势”，期望：要求四柱 -> heartbeat 写入成功 -> 返回完整解读。
+1. 首次用户输入“今日运势”，期望：要求四柱 -> 档案写入成功 -> 返回完整解读。
 2. 同一用户再次输入“今天适合谈合作吗？”，期望：不再询问四柱，直接返回结论与宜忌。
 3. 用户时区为 `Asia/Shanghai`，在 00:05 与 23:55 测试，期望：`today_local` 与用户本地日期一致。
 4. 构造当日无流运记录，期望：输出缺失提示，不编造流年流月流日。
-5. 模拟 heartbeat upsert 失败，期望：本次照常解读，附“未保存”提示。
-6. 模拟 heartbeat get 失败，期望：进入首次引导，流程不断。
+5. 模拟档案写入失败，期望：本次照常解读，附“未保存”提示。
+6. 模拟档案读取失败，期望：进入首次引导，流程不断。
 7. 构造“结构与调候结论不一致”案例，期望：输出中明确展示 `B->C->A` 取舍链路。
 8. 检查回答文本，期望：关键结论至少各含一个 `[B-结构]/[C-调候]/[A-原理]` 标签。

@@ -97,7 +97,7 @@ def validate_records(records: List[Dict[str, str]]) -> None:
 
 
 def build_sql(records: List[Dict[str, str]], table: str, source: str) -> str:
-    # UTC timestamp in Z-suffix ISO 8601 format (see references/heartbeat-contract.md)
+    # UTC timestamp in Z-suffix ISO 8601 format (see references/bazi-profile-contract.md)
     today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     lines = [
         "BEGIN;",
