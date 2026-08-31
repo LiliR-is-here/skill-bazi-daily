@@ -1,9 +1,20 @@
 ---
 name: bazi-daily
+version: 2.0.0
 description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询的八字日运解读技能。使用场景：用户在 OpenClaw 中询问当日运势、某事项是否适合今天做、今日吉凶与建议时触发。技能会自动读取当前日期，查询当日对应的流年、流月、流日，并结合用户的八字四柱进行分析；若用户为首次使用且无个人四柱记忆，先引导用户提供四柱并写入长期记忆，后续复用无需重复询问。
 ---
 
 # Bazi Daily
+
+## Version & Changelog
+
+- **v2.0.0**（2026-08-31）
+  - 新增 `output_style` 输出风格开关（`structured` / `narrative`），支持“结论先行 + 叙事取象”。
+  - 新增 Flow Luck Consumption（强制）：闭合 `flow_year/flow_month/flow_day` 的消费链路，不再“只查不用”。
+  - 四柱校验规则单点化至 `references/heartbeat-contract.md`，升级为“六十甲子表匹配”，拒绝 `甲丑` 类非法组合。
+  - 新增“涉及缺失”判定规则与缺失章节清单（见 `references/classics/README.md`），未命中清单不再全量警告。
+  - 强制日志字段新增落地位置 `logs/bazi_daily_YYYY-MM-DD.json`。
+- **v1.0.0**（2026-03-03）：初始版本。
 
 ## Knowledge Source Architecture (Mandatory)
 
@@ -20,7 +31,12 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询�
 
 若 txt 文件不可读，直接报错"经典文本文件缺失，无法完成分析"，不得尝试其他路径。
 
-> **当前文本覆盖缺口警告**：`B_渊海子平.txt` 缺少格局判断核心章节（成格/破格/从格/化格），`C_穷通宝鉴.txt` 缺少约 40% 天干的调候章节（乙木完整版、丁火、戊土、己土、庚金、辛金、癸水）。在涉及上述缺失内容时，输出中必须注明"当前文本节选，[B-结构]/[C-调候] 依据不完整"，不得以模型内置知识静默替代。详见 [references/classics/README.md](references/classics/README.md)。
+> **当前文本覆盖缺口警告**：`B_渊海子平.txt` 缺少格局判断核心章节（成格/破格/从格/化格），`C_穷通宝鉴.txt` 缺少约 40% 天干的调候章节（乙木完整版、丁火、戊土、己土、庚金、辛金、癸水）。不得以模型内置知识静默替代缺失内容。详见 [references/classics/README.md](references/classics/README.md)。
+>
+> **“涉及缺失”判定规则（强制）**：仅当本次分析**实际引用**的内容命中下述“缺失章节清单”时，才输出“当前文本节选，[B-结构]/[C-调候] 依据不完整”；未命中清单的分析不得触发全量警告。缺失章节清单：
+> - `[B-结构]` 缺失：格局判定章节（成格/破格/从格/化格）——仅当本次需判定格局成立/破坏/从化时命中。
+> - `[C-调候]` 缺失：乙木完整版、丁火、戊土、己土、庚金、辛金、癸水的分月调候条文——仅当本次日主为上述天干且需分月取调候时命中。
+> 命中时：对应结论不标注 `[B-结构]/[C-调候]` 来源标签，并在输出注明“当前文本节选，[B-结构]/[C-调候] 依据不完整”。
 
 调用顺序必须是：`B 结构 -> C 调候 -> A 解释`。
 路由细则见 [references/classic-sources-routing.md](references/classic-sources-routing.md)。
@@ -52,7 +68,17 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询�
 4. `step4 气机解释（滴天髓）`
    - 用 A 库解释最终结论背后的气机逻辑，使结论成体系、可说明。
 5. `step5 输出`
-   - 输出“结论 + 依据 + 建议”，并标明依据来自 A/B/C 哪一类规则。
+   - 输出“结论 + 依据 + 建议”，并标明依据来自 A/B/C 哪一类规则；其中“当日流运影响”必须体现 Flow Luck Consumption 的消费结果（见下）。
+
+## Flow Luck Consumption (Mandatory)
+
+查询到的 `flow_year` / `flow_month` / `flow_day` **必须实际参与分析**，禁止“只查不用”：
+
+1. `flow_day`（流日）：以“日主 × 流日干支”推算十神关系，判定当日主题倾向；若流日与命盘日柱同柱为“伏吟”、相冲为“反吟”，须显式提示。
+2. `flow_month`（流月）：作为调候步骤的月令气候补充输入，纳入 step3 的 C 库校正（流月与命局月令的寒暖燥湿叠加判断）。
+3. `flow_year`（流年）：从岁运视角评估对用神/忌神的生扶或制克方向，影响“宜/忌”建议的力度。
+
+上述影响必须体现在输出“当日流运影响”段（见 Response Template），不得只列干支不出结论。
 
 ## Mandatory Pre-Analysis Gates
 
@@ -79,7 +105,7 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询�
 1. 明确告知需要四柱后才能进行个性化日运分析。
 2. 请用户直接提供四柱，格式优先：`年柱/月柱/日柱/时柱`。
 3. 若用户不清楚四柱，建议前往“万年历”查询：<https://wannianrili.bmcx.com/>，输入生日后获取四柱再回传。
-4. 校验四柱完整性与格式：四项都存在且非空，且每柱须为有效干支组合（2 个汉字，第 1 字为十天干，第 2 字为十二地支）；格式不合法时要求用户重新输入，不得写入。
+4. 校验四柱完整性与格式：按 [references/heartbeat-contract.md](references/heartbeat-contract.md) 的 Validation Rule 执行（完整性 + 六十甲子表匹配）；格式不合法时要求用户重新输入，不得写入。
 5. 调 heartbeat `bazi_profile_upsert` 将结构化结果写入长期记忆。
 6. 写入成功后继续本次分析，不要求用户重新提问。
 
@@ -145,9 +171,18 @@ heartbeat 请求响应与错误码约定见 [references/heartbeat-contract.md](r
 2. heartbeat 写入失败时，继续使用用户本次输入完成分析；同时提示“本次已解读，但暂未保存，下次可能需要再次提供”。
 3. 当日流运缺失时，明确告知“缺少当日流运数据，仅基于四柱给出有限建议”；该提示必须建立在“已执行当日查询且未命中”之上。
 
+## Output Style
+
+通过会话配置 `output_style` 控制输出顺序（默认 `structured`）：
+
+- `structured`（默认）：严格按下方 Response Template 十段式顺序输出。
+- `narrative`：结论先行 + 叙事/取象风格——先给“今日总体倾向”与“宜/忌”直接结论，再用叙事语言解释命盘与流运（保留 `[B-结构]/[C-调候]/[A-原理]` 证据标签），最后给一句风险提示。
+
+未配置时按 `structured` 执行；用户明确表达偏好（如“结论先行”“讲人话”“说重点”）时以 `narrative` 执行。
+
 ## Response Template
 
-按以下顺序组织回答：
+（`output_style=structured` 时）按以下顺序组织回答：
 1. 今日日期（`YYYY-MM-DD`）
 2. 当日流运（流年/流月/流日）
 3. 命盘摘要（十神/强弱初判/月令/格局候选）
@@ -185,6 +220,8 @@ heartbeat 请求响应与错误码约定见 [references/heartbeat-contract.md](r
 - `climate_adjustment_applied`
 
 上述字段不得省略；若某字段在当次请求中不适用（如首次引导无 `heartbeat_upsert_status`），记录为 `null`。
+
+**落地位置（强制）**：每次请求写入 `logs/bazi_daily_YYYY-MM-DD.json`（按 UTC 日期分文件），单条记录为一个 JSON 对象，字段与上述一致；运行环境无文件系统时降级为会话内日志并注明 `logging_fallback=true`。
 
 ## UAT Cases
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import re
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -95,8 +96,9 @@ def validate_records(records: List[Dict[str, str]]) -> None:
         seen.add(d)
 
 
-def build_sql(records: List[Dict[str, str]], table: str) -> str:
-    today = dt.datetime.now(dt.timezone.utc).isoformat()
+def build_sql(records: List[Dict[str, str]], table: str, source: str) -> str:
+    # UTC timestamp in Z-suffix ISO 8601 format (see references/heartbeat-contract.md)
+    today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     lines = [
         "BEGIN;",
         f"CREATE TABLE IF NOT EXISTS {table} (",
@@ -119,7 +121,7 @@ def build_sql(records: List[Dict[str, str]], table: str) -> str:
                         sql_quote(r["flow_year"]),
                         sql_quote(r["flow_month"]),
                         sql_quote(r["flow_day"]),
-                        sql_quote("xlsx_2026"),
+                        sql_quote(source),
                         sql_quote(today),
                     ]
                 )
@@ -142,12 +144,18 @@ def main() -> None:
     parser.add_argument("--output", required=True, help="Path to output .sql")
     parser.add_argument("--sheet", default=None, help="Sheet name, default first sheet")
     parser.add_argument("--table", default="bazi_daily_calendar", help="Target table name")
+    parser.add_argument("--source", default=None, help="Source label for records (default: derived from input filename year, e.g. xlsx_2027)")
     args = parser.parse_args()
 
     input_path = Path(args.input)
     output_path = Path(args.output)
     if not input_path.exists():
         raise FileNotFoundError(f"Input file not found: {input_path}")
+
+    source = args.source
+    if source is None:
+        m = re.search(r"(20\d{2})", input_path.name)
+        source = "xlsx_" + (m.group(1) if m else "unknown")
 
     wb = load_workbook(input_path, data_only=True, read_only=True)
     sheet = wb[args.sheet] if args.sheet else wb[wb.sheetnames[0]]
@@ -158,13 +166,14 @@ def main() -> None:
         raise ValueError("No valid data rows found in xlsx")
     validate_records(records)
 
-    sql = build_sql(records, args.table)
+    sql = build_sql(records, args.table, source)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(sql, encoding="utf-8")
 
     print(f"sheet={sheet.title}")
     print(f"header_row={header_row}")
     print(f"records={len(records)}")
+    print(f"source={source}")
     print(f"output={output_path}")
 
 

@@ -7,8 +7,6 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-CLASSIC_KEYS = ["A_滴天髓", "B_渊海子平", "C_穷通宝鉴"]
-
 
 def extract_text(pdf_path: Path) -> list[str]:
     reader = PdfReader(str(pdf_path))
