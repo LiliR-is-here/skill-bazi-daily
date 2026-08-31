@@ -1,29 +1,9 @@
 ---
 name: bazi-daily
-version: 2.2.0
 description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询的八字日运解读技能。使用场景：用户询问当日运势、某事项是否适合今天做、今日吉凶与建议时触发。技能会自动读取当前日期，查询当日对应的流年、流月、流日，并结合用户的八字四柱进行分析；若用户为首次使用且无个人四柱记忆，先引导用户提供四柱并写入长期记忆，后续复用无需重复询问。
 ---
 
 # Bazi Daily
-
-## Version & Changelog
-
-- **v2.2.0**（2026-08-31）
-  - B《渊海子平》、C《穷通宝鉴》由节选版升级为**完整版**（B：通行七卷本 304 章约 25 万字；C：通行六卷本、十天干分月喜忌与命例齐全），补齐历史“格局论核心章节缺失”与“调候章节缺失”两大缺口。
-  - 新增经典文本检索脚本 `scripts/query_classics.py`（关键词定位章节 + 按章精读），并规定 B/C 大文件必须先检索后精读、禁止整篇读入上下文。
-  - `references/classics/README.md` 重写：覆盖状态更新为“已补全”，新增“检索方式（Retrieval Guide）”章节。
-- **v2.1.0**（2026-08-31）
-  - 清理 OpenClaw 工程残留：移除 `agents/`（OpenClaw agent 配置）与 `references/heartbeat-contract.md`。
-  - 档案读写改为通用记忆契约 `references/bazi-profile-contract.md`（记忆服务优先，本地 `MEMORY.md` 回退），不再绑定 heartbeat。
-  - 日历数据接入路径去 OpenClaw 化：删除 `<OPENCLAW_DB_EXEC>` / “OpenClaw 内置表” / `openclaw.db` 表述，补充本地查询方式。
-  - 强制日志字段 `heartbeat_get_status` / `heartbeat_upsert_status` 更名为 `memory_get_status` / `memory_upsert_status`。
-- **v2.0.0**（2026-08-31）
-  - 新增 `output_style` 输出风格开关（`structured` / `narrative`），支持“结论先行 + 叙事取象”。
-  - 新增 Flow Luck Consumption（强制）：闭合 `flow_year/flow_month/flow_day` 的消费链路，不再“只查不用”。
-  - 四柱校验规则单点化至契约文档 `references/bazi-profile-contract.md`，升级为“六十甲子表匹配”，拒绝 `甲丑` 类非法组合。
-  - 新增“涉及缺失”判定规则与缺失章节清单（见 `references/classics/README.md`），未命中清单不再全量警告。
-  - 强制日志字段新增落地位置 `logs/bazi_daily_YYYY-MM-DD.json`。
-- **v1.0.0**（2026-03-03）：初始版本。
 
 ## Knowledge Source Architecture (Mandatory)
 
@@ -40,7 +20,7 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询�
 
 若 txt 文件不可读，直接报错"经典文本文件缺失，无法完成分析"，不得尝试其他路径。
 
-> **经典文本覆盖状态（v2.2.0 已补全）**：B/C 已由节选版升级为完整版，历史“格局论核心章节缺失”“调候章节缺失”缺口已全部补齐，不再存在“涉及缺失”回退。仅 `A_滴天髓.txt` 为节选（暂无已知缺口）。
+> **经典文本覆盖状态**：B/C 为完整版（B 七卷 304 章、C 六卷十天干齐全），无已知缺口；仅 `A_滴天髓.txt` 为节选（上篇通神论、下篇六亲论），暂无已知缺口。
 
 调用顺序必须是：`B 结构 -> C 调候 -> A 解释`。
 路由细则见 [references/classic-sources-routing.md](references/classic-sources-routing.md)。
@@ -73,7 +53,7 @@ B 完整版约 25 万字、C 约 3.3 万字，**禁止整篇读入上下文**。
 默认年度数据源文件：`assets/bazi_daily_calendar_2026.sql`。
 导入脚本：`scripts/import_bazi_calendar.py`。
 经典文本检索脚本：`scripts/query_classics.py`（Step2/3/4 引用经典原文前使用，见 “Classic Text Retrieval”）。
-经典文本预处理脚本：`scripts/extract_classics_text.py`（历史用，B/C 完整版已内置，一般不再执行）。
+经典文本预处理脚本：`scripts/extract_classics_text.py`（从 PDF 源重新抽取/替换经典文本，通常无需执行）。
 
 ## Five-Step Orchestration (Mandatory)
 

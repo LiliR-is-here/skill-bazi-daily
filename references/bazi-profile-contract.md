@@ -1,6 +1,6 @@
 # Bazi Profile Contract
 
-本文件定义 `bazi-daily` 的用户四柱档案结构与读写契约。档案通过运行环境的记忆能力或本地文件存储，**不绑定任何特定运行平台**（无 heartbeat / OpenClaw 依赖）。
+本文件定义 `bazi-daily` 的用户四柱档案结构与读写契约。档案通过运行环境的记忆能力或本地文件存储，**不绑定任何特定运行平台**。
 
 ## Profile Structure
 
